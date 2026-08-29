@@ -1,0 +1,11 @@
+[project]
+name = "repl-nix-workspace"
+version = "0.1.0"
+description = "Hybrid ELT orders pipeline with Python Batch, PySpark, MongoDB, and data quality rules"
+requires-python = ">=3.11"
+dependencies = [
+    "pymongo>=4.17.0",
+    "pytest>=9.1.1",
+    "pyspark>=3.5,<4",
+    "pymupdf>=1.28.2",
+]

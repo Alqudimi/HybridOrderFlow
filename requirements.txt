@@ -1,0 +1,5 @@
+pymongo>=4.8,<5
+pytest>=8,<10
+# Required only for the large-file route:
+pyspark>=3.5,<4
+pymupdf>=1.28.2
