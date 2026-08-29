@@ -40,19 +40,12 @@ def test_duplicate_order_id_is_quarantined_with_explicit_reason() -> None:
     assert "DUPLICATE_ORDER_ID" in result["error_codes"]
 
 
-def test_full_elt_is_consistent_and_idempotent() -> None:
-    input_path = Path("attached_assets/sample_orders_1787957383234.csv")
-    if not input_path.exists():
-        input_path = Path(
-            ".local/conversation-workspace/files/attached_assets/"
-            "sample_orders_1787957383234.csv"
-        )
-    if not input_path.exists():
-        input_path = Path("data/orders_sample.csv")
+def test_full_elt_is_consistent_and_idempotent(tmp_path: Path) -> None:
+    input_path = Path("data/orders_sample.csv")
     settings = Settings(
         small_file_threshold_mb=200,
         batch_size=17,
-        results_path=Path("reports/test-results.json"),
+        results_path=tmp_path / "test-results.json",
     )
     repository = InMemoryOrdersRepository()
     decision = choose_engine(inspect_file(input_path), settings)
@@ -96,11 +89,11 @@ def _delta_record(order_id: str, total: str, version: str) -> dict[str, str]:
     }
 
 
-def test_incremental_delta_insert_update_and_replay() -> None:
+def test_incremental_delta_insert_update_and_replay(tmp_path: Path) -> None:
     from src.incremental_loader import load_delta
 
     repository = InMemoryOrdersRepository()
-    delta_path = Path("reports/test-delta.csv")
+    delta_path = tmp_path / "test-delta.csv"
     row = _delta_record("delta-1", "100", "1")
     with delta_path.open("w", encoding="utf-8", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=list(row))
@@ -111,4 +104,3 @@ def test_incremental_delta_insert_update_and_replay() -> None:
     assert first.inserted_count == 1
     assert replay.unchanged_count == 1
     assert repository.count_business_records() == 1
-    delta_path.unlink()

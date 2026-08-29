@@ -38,11 +38,6 @@
 العرض النهائي، لكنه يثبت قواعد الجودة وIdempotency محليًا:
 
 ```bash
-python src/create_small_sample.py \
-  --input attached_assets/sample_orders_1787957383234.csv \
-  --output data/orders_sample.csv \
-  --rows 1000
-
 python src/main.py \
   --input data/orders_sample.csv \
   --dry-run \
