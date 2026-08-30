@@ -78,3 +78,70 @@ def test_negative_quantity_is_not_guessed() -> None:
     result = classify_record(record)
     assert result["quality_status"] == "quarantined"
     assert "AMBIGUOUS_NEGATIVE_VALUE" in result["error_codes"]
+
+
+def test_advanced_cleaning_rules() -> None:
+    # 1. Test USD/SAR Currency Conversion to YER
+    record_usd = valid_record()
+    record_usd["currency"] = "USD"
+    record_usd["total_amount"] = "20"
+    record_usd["payment_amount"] = "20"
+    record_usd["delivery_cost"] = "0"
+    record_usd["items_json"] = '[{"sku":"SKU-1","name":"item","qty":2,"unit_price":10}]'
+    
+    res = classify_record(record_usd)
+    assert res["quality_status"] == "corrected"
+    assert res["currency"] == "YER"
+    # 20 USD * 530 = 10600 YER
+    assert res["total_amount"] == 10600.0
+    assert res["payment_amount"] == 10600.0
+    assert res["items_json"][0]["unit_price"] == 5300.0  # 10 USD * 530 = 5300 YER
+
+    # 2. Test Smart Date Formats & Epoch Timestamps
+    record_date = valid_record()
+    record_date["order_date"] = "31-12-2024 15:30:45"
+    res_date = classify_record(record_date)
+    assert res_date["quality_status"] == "corrected"
+    assert res_date["order_date"] == "2024-12-31"
+
+    # Epoch millisecond timestamp
+    record_epoch = valid_record()
+    record_epoch["order_date"] = "1735689600000"  # 2025-01-01 00:00:00 UTC
+    res_epoch = classify_record(record_epoch)
+    assert res_epoch["quality_status"] == "corrected"
+    assert res_epoch["order_date"].startswith("2025-01-01")
+
+    # 3. Test Email Domain Repair (obvious typos)
+    record_email = valid_record()
+    record_email["customer_email"] = "test@gamil.com."
+    res_email = classify_record(record_email)
+    assert res_email["quality_status"] == "corrected"
+    assert res_email["customer_email"] == "test@gmail.com"
+
+    # 4. Test Advanced Phone Formatting
+    record_phone = valid_record()
+    record_phone["customer_phone"] = "0771234567"
+    res_phone = classify_record(record_phone)
+    assert res_phone["quality_status"] == "corrected"
+    assert res_phone["customer_phone"] == "771234567"
+
+    # Starting with 967 without country prefix
+    record_phone2 = valid_record()
+    record_phone2["customer_phone"] = "967771234567"
+    res_phone2 = classify_record(record_phone2)
+    assert res_phone2["quality_status"] == "corrected"
+    assert res_phone2["customer_phone"] == "771234567"
+
+    # 5. Test Negative Sign Typo Repair for total_amount
+    record_neg = valid_record()
+    record_neg["total_amount"] = "-12000"  # dash typo, absolute matches items + delivery
+    res_neg = classify_record(record_neg)
+    assert res_neg["quality_status"] == "corrected"
+    assert res_neg["total_amount"] == 12000.0
+
+    # 6. Test City Name Spelling Standardization
+    record_city = valid_record()
+    record_city["city"] = "صنعا"
+    res_city = classify_record(record_city)
+    assert res_city["city"] == "صنعاء"
+

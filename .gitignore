@@ -7,4 +7,4 @@ TODO.md
 # Test-only artifacts are reproducible and should not accumulate in reports.
 reports/test-results.json
 reports/test-delta.csv
-pymongo_39/
+pymongo_39
