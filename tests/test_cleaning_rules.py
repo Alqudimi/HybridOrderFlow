@@ -173,3 +173,40 @@ def test_business_key_inferences() -> None:
     assert res3["customer_id"] == "عميل-21"
 
 
+def test_extra_treatments_and_libraries() -> None:
+    # 1. Customer name title removal
+    record = valid_record()
+    record["customer_name"] = "الدكتور محمد علي"
+    res = classify_record(record)
+    assert res["customer_name"] == "محمد علي"
+
+    record_eng = valid_record()
+    record_eng["customer_name"] = "Dr. John Doe"
+    res_eng = classify_record(record_eng)
+    assert res_eng["customer_name"] == "John Doe"
+
+    # 2. Payment Method standardization
+    record_pm = valid_record()
+    record_pm["payment_method"] = "cash"
+    res_pm = classify_record(record_pm)
+    assert res_pm["payment_method"] == "نقدًا عند التسليم"
+
+    record_pm2 = valid_record()
+    record_pm2["payment_method"] = "كريمي"
+    res_pm2 = classify_record(record_pm2)
+    assert res_pm2["payment_method"] == "محفظة إلكترونية"
+
+    # 3. Fuzzy date parsing via dateutil
+    record_date = valid_record()
+    record_date["order_date"] = "24 Feb 2025 21:29:00"
+    res_date = classify_record(record_date)
+    assert res_date["order_date"] == "2025-02-24"
+
+    # 4. Phonenumbers standardizer
+    record_phone = valid_record()
+    record_phone["customer_phone"] = "+967 77 123 4567"
+    res_phone = classify_record(record_phone)
+    assert res_phone["customer_phone"] == "771234567"
+
+
+

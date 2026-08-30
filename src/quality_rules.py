@@ -103,6 +103,23 @@ STATUS_ALIASES = {
     "فوري": "فوري",
     "instant": "فوري",
     "immediate": "فوري",
+
+    # --- Payment Method ---
+    "cash": "نقدًا عند التسليم",
+    "cod": "نقدًا عند التسليم",
+    "نقدا": "نقدًا عند التسليم",
+    "كاش": "نقدًا عند التسليم",
+    "نقد": "نقدًا عند التسليم",
+    "الدفع عند الاستلام": "نقدًا عند التسليم",
+    "card": "بطاقة",
+    "credit": "بطاقة",
+    "فيزا": "بطاقة",
+    "مدى": "بطاقة",
+    "wallet": "محفظة إلكترونية",
+    "محفظه": "محفظة إلكترونية",
+    "محفظة": "محفظة إلكترونية",
+    "كريمي": "محفظة إلكترونية",
+    "جيب": "محفظة إلكترونية",
 }
 
 
@@ -150,6 +167,38 @@ def _clean_text(
         corrections, field, original, cleaned, "TEXT_NORMALIZATION"
     )
     record[field] = cleaned
+
+
+def _clean_name(
+    record: dict[str, Any],
+    corrections: list[dict[str, Any]],
+) -> None:
+    original = record.get("customer_name")
+    if original is None:
+        return
+    text = str(original).strip()
+    
+    # Remove titles
+    cleaned = text
+    titles = [
+        r"^(السيد|السيده|الدكتور|الدكتوره|المهندس|المهندسه|الاستاذ|الاستاذه|الشيخ|الشيخه|أ\.|د\.|م\.|السيد\s*/|المهندس\s*/)\s*",
+        r"^(Mr\.|Mrs\.|Ms\.|Dr\.|Eng\.|Prof\.)\s*",
+    ]
+    for pattern in titles:
+        cleaned = re.sub(pattern, "", cleaned, flags=re.IGNORECASE)
+        
+    cleaned = re.sub(r"\s+", " ", cleaned).strip()
+    
+    if cleaned != text:
+        _record_correction(
+            corrections,
+            "customer_name",
+            original,
+            cleaned,
+            "NAME_REMOVE_TITLES",
+        )
+        record["customer_name"] = cleaned
+
 
 
 def _parse_number(
@@ -304,7 +353,37 @@ def _normalize_phone(
     text = normalize_digits(str(original)).strip()
     compact = re.sub(r"[^\d+]", "", text)
     
-    # Handle country codes
+    # Try using Google's phonenumbers library if available
+    try:
+        import phonenumbers
+        parse_str = compact
+        if not parse_str.startswith("+") and (parse_str.startswith("967") or parse_str.startswith("00")):
+            if parse_str.startswith("00"):
+                parse_str = "+" + parse_str[2:]
+            else:
+                parse_str = "+" + parse_str
+        
+        parsed = phonenumbers.parse(parse_str, "YE")
+        if phonenumbers.is_valid_number(parsed):
+            if parsed.country_code == 967:
+                formatted = str(parsed.national_number)
+            else:
+                formatted = phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.E164)
+            
+            if original != formatted:
+                _record_correction(
+                    corrections,
+                    "customer_phone",
+                    original,
+                    formatted,
+                    "PHONE_REMOVE_SPACES_AND_COUNTRY_CODE",
+                )
+                record["customer_phone"] = formatted
+            return
+    except Exception:
+        pass
+
+    # Fallback to standard regex rules
     if compact.startswith("+967"):
         compact = compact[4:]
     elif compact.startswith("00967"):
@@ -312,10 +391,7 @@ def _normalize_phone(
     elif compact.startswith("967") and len(compact) > 9:
         compact = compact[3:]
         
-    # Handle leading zero, e.g. 0771234567 -> 771234567
-    if compact.startswith("0") and len(compact) == 10:
-        compact = compact[1:]
-    elif compact.startswith("0") and len(compact) == 9:
+    if compact.startswith("0") and len(compact) in (9, 10):
         compact = compact[1:]
         
     if compact.isdigit() and len(compact) == 9:
@@ -327,6 +403,7 @@ def _normalize_phone(
             "PHONE_REMOVE_SPACES_AND_COUNTRY_CODE",
         )
         record["customer_phone"] = compact
+
 
 
 def _normalize_email(
@@ -399,6 +476,14 @@ def _normalize_date(
         except Exception:
             pass
             
+    if parsed is None:
+        try:
+            import dateutil.parser
+            if not text.replace(".", "").isdigit():
+                parsed = dateutil.parser.parse(text, dayfirst=True)
+        except Exception:
+            pass
+
     if parsed is None:
         text = re.sub(r"\s+", " ", text)
         for fmt in (
@@ -604,6 +689,7 @@ def classify_record(
         _clean_text(record, field, corrections)
         
     _normalize_business_keys(record, corrections)
+    _clean_name(record, corrections)
         
     if not record.get("order_id"):
         errors.append(
@@ -638,7 +724,7 @@ def classify_record(
             record[field] = parsed
             
     # Dictionary standardization using synonyms mapping
-    for field in ("status", "payment_status", "delivery_type"):
+    for field in ("status", "payment_status", "delivery_type", "payment_method"):
         value = record.get(field)
         if value is not None:
             normalized = STATUS_ALIASES.get(str(value).strip().lower(), str(value).strip())
