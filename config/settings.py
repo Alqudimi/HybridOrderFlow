@@ -17,6 +17,9 @@ class Settings:
     spark_app_name: str = "hybrid-orders-pipeline"
     spark_partitions: int | None = None
     spark_jars: str | None = None
+    spark_executor_memory: str = "2g"
+    spark_driver_memory: str = "2g"
+    spark_deploy_mode: str = "client"
     smart_poll_lease_seconds: int = 300
     results_path: Path = Path("reports/results.json")
 
@@ -34,6 +37,15 @@ class Settings:
             spark_app_name=os.getenv("SPARK_APP_NAME", cls.spark_app_name),
             spark_partitions=int(partitions) if partitions else None,
             spark_jars=os.getenv("SPARK_JARS"),
+            spark_executor_memory=os.getenv(
+                "SPARK_EXECUTOR_MEMORY", cls.spark_executor_memory
+            ),
+            spark_driver_memory=os.getenv(
+                "SPARK_DRIVER_MEMORY", cls.spark_driver_memory
+            ),
+            spark_deploy_mode=os.getenv(
+                "SPARK_DEPLOY_MODE", cls.spark_deploy_mode
+            ),
             smart_poll_lease_seconds=int(
                 os.getenv("SMART_POLL_LEASE_SECONDS", "300")
             ),

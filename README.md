@@ -126,14 +126,59 @@ midterm-data-pipeline/
 |-- scripts/
 |   |-- run_full_verification.py   سكربت التحقق الشامل من جميع المراحل
 |   |-- run_verification.sh        أمر التشغيل الموحد
-|   `-- generate_report.py         مولد تقرير النتائج التحليلي
+|   |-- generate_report.py         مولد تقرير النتائج التحليلي
+|   |-- generate_million_records.py مولد بيانات المليون سجل
+|   |-- cluster_start.sh           تشغيل كلاستر Spark الموزع
+|   |-- cluster_stop.sh            إيقاف الكلاستر
+|   `-- run_cluster_benchmark.sh   مقارنة أداء Local vs Cluster
+|-- cluster/
+|   |-- docker-compose.yml         تعريف خدمات الكلاستر (Docker)
+|   |-- spark-env.sh               إعدادات بيئة Spark
+|   |-- spark-defaults.conf        إعدادات Spark الافتراضية
+|   `-- workers                    قائمة عناوين العمال
 |-- reports/
 |   |-- results.json               سجل مقاييس التشغيل
-|   `-- results.md                 التقرير التحليلي الشامل المقارن
+|   |-- results.md                 التقرير التحليلي الشامل المقارن
+|   `-- cluster_benchmark.md       تقرير مقارنة أداء الكلاستر
 `-- docs/
     |-- architecture.md            التوثيق المعماري ومخططات التدفق
-    `-- verification.md            سجل التحقق التشغيلي والأدلة الفعلية
+    |-- verification.md            سجل التحقق التشغيلي والأدلة الفعلية
+    `-- cluster_setup.md           دليل إعداد الكلاستر الموزع
 ```
+
+---
+
+## 🖥️ تشغيل الكلاستر الموزع (Spark Standalone Cluster)
+
+### الإعداد السريع (Docker Compose)
+```bash
+# 1. تشغيل الكلاستر (Master + 2 Workers + MongoDB)
+bash scripts/cluster_start.sh
+
+# 2. توليد مليون سجل للمقارنة
+python3 scripts/generate_million_records.py --rows 1000000
+
+# 3. تشغيل المعالجة عبر الكلاستر
+SPARK_MASTER=spark://spark-master:7077 \
+MONGO_URI=mongodb://spark-cluster-mongodb:27017 \
+python3 src/main.py --input data/orders_1m.csv --force-engine pyspark
+
+# 4. مقارنة الأداء: Local vs Cluster
+bash scripts/run_cluster_benchmark.sh
+
+# 5. إيقاف الكلاستر
+bash scripts/cluster_stop.sh
+```
+
+### واجهات المراقبة
+| الواجهة | العنوان |
+|---|---|
+| Spark Master UI | http://localhost:8080 |
+| Worker 1 UI | http://localhost:8081 |
+| Worker 2 UI | http://localhost:8082 |
+| Application UI | http://localhost:4040 (أثناء التنفيذ) |
+
+> للتوثيق الكامل: [`docs/cluster_setup.md`](docs/cluster_setup.md)
 
 ---
 
@@ -150,4 +195,6 @@ midterm-data-pipeline/
    - إعادة تشغيل نفس الأمر وملاحظة ثبات عدد السجلات في `orders_validated` دون أي تكرار (`unchanged_count`).
    - تعديل سجل واحد وإظهار تحديثه في مكانه (`updated_count = 1`) دون إنشاء سجل ثانٍ.
 6. **الخطوة 6 - إثبات المسار المتقدم B (التحميل التزايدي)**: تشغيل `scripts/run_full_verification.py` وإظهار معالجة ملفات Delta وتطبيق تحديثات الإصدارات الأحدث فقط.
-7. **الخطوة 7 - استعراض تقرير النتائج**: فتح ملف `reports/results.md` واستعراض المقاييس المقارنة وتحقق معادلة الاتساق الرياضية.
+7. **الخطوة 7 - تشغيل الكلاستر الموزع**: تشغيل `bash scripts/cluster_start.sh` وفتح `http://localhost:8080` لإظهار Master و Workers، ثم تشغيل المعالجة عبر الكلاستر ومراقبة توزيع Tasks على Executors.
+8. **الخطوة 8 - مقارنة الأداء**: تشغيل `bash scripts/run_cluster_benchmark.sh` وعرض نتائج المقارنة بين Local و Cluster على مليون سجل.
+9. **الخطوة 9 - استعراض تقرير النتائج**: فتح ملف `reports/results.md` و `reports/cluster_benchmark.md` واستعراض المقاييس المقارنة وتحقق معادلة الاتساق الرياضية.

@@ -90,6 +90,8 @@ def build_spark_session(settings: Settings) -> Any:
             "spark.mongodb.write.connection.uri",
             f"{settings.mongo_uri}/{settings.mongo_database}",
         )
+        .config("spark.executor.memory", settings.spark_executor_memory)
+        .config("spark.driver.memory", settings.spark_driver_memory)
     )
     if settings.spark_jars:
         builder = builder.config("spark.jars", settings.spark_jars)
@@ -103,7 +105,28 @@ def build_spark_session(settings: Settings) -> Any:
                 "spark.jars.packages",
                 "org.mongodb.spark:mongo-spark-connector_2.13:10.4.0",
             )
-    return builder.getOrCreate()
+    spark = builder.getOrCreate()
+
+    # Log cluster connection details for verification.
+    sc = spark.sparkContext
+    master_url = sc.master
+    app_id = sc.applicationId
+    logger.info(
+        "SparkSession created — master=%s, appId=%s, "
+        "executor_memory=%s, driver_memory=%s",
+        master_url,
+        app_id,
+        settings.spark_executor_memory,
+        settings.spark_driver_memory,
+    )
+    if not master_url.startswith("local"):
+        try:
+            # In cluster mode, log executor count for verification.
+            executors = sc._jsc.sc().getExecutorMemoryStatus().size() - 1
+            logger.info("Cluster executors detected: %s", executors)
+        except Exception:
+            logger.info("Cluster mode active but executor count unavailable yet")
+    return spark
 
 
 # ---------------------------------------------------------------------------

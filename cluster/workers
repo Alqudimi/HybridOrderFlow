@@ -1,0 +1,4 @@
+# Spark Workers (one hostname per line)
+# Used by $SPARK_HOME/sbin/start-workers.sh
+spark-worker-1
+spark-worker-2
