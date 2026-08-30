@@ -529,6 +529,60 @@ def _normalize_items(
     return round(item_total, 2)
 
 
+def _normalize_business_keys(
+    record: dict[str, Any],
+    corrections: list[dict[str, Any]],
+) -> None:
+    order_id = record.get("order_id")
+    customer_id = record.get("customer_id")
+    
+    # Parse numbers from the keys
+    order_num = None
+    if order_id:
+        match = re.search(r"\d+", normalize_digits(str(order_id)))
+        if match:
+            order_num = int(match.group())
+            
+    customer_num = None
+    if customer_id:
+        match = re.search(r"\d+", normalize_digits(str(customer_id)))
+        if match:
+            customer_num = int(match.group())
+            
+    # Case 1: customer_id is missing or empty, but order_id is present and has a number
+    if (not customer_id or str(customer_id).strip() == "") and order_num is not None:
+        inferred_c_num = order_num - 100000
+        if inferred_c_num >= 0:
+            inferred_c_id = f"عميل-{inferred_c_num}"
+            _record_correction(corrections, "customer_id", customer_id, inferred_c_id, "INFER_CUSTOMER_ID_FROM_ORDER_ID")
+            record["customer_id"] = inferred_c_id
+            customer_num = inferred_c_num
+            customer_id = inferred_c_id
+            
+    # Case 2: order_id is missing or empty, but customer_id is present and has a number
+    if (not order_id or str(order_id).strip() == "") and customer_num is not None:
+        inferred_o_num = customer_num + 100000
+        inferred_o_id = f"طلب-{inferred_o_num}"
+        _record_correction(corrections, "order_id", order_id, inferred_o_id, "INFER_ORDER_ID_FROM_CUSTOMER_ID")
+        record["order_id"] = inferred_o_id
+        order_num = inferred_o_num
+        order_id = inferred_o_id
+        
+    # Standardize format for present order_id
+    if order_id and order_num is not None:
+        standard_order_id = f"طلب-{order_num}"
+        if order_id != standard_order_id:
+            _record_correction(corrections, "order_id", order_id, standard_order_id, "STANDARDIZE_ORDER_ID")
+            record["order_id"] = standard_order_id
+            
+    # Standardize format for present customer_id
+    if customer_id and customer_num is not None:
+        standard_customer_id = f"عميل-{customer_num}"
+        if customer_id != standard_customer_id:
+            _record_correction(corrections, "customer_id", customer_id, standard_customer_id, "STANDARDIZE_CUSTOMER_ID")
+            record["customer_id"] = standard_customer_id
+
+
 def classify_record(
     raw_record: dict[str, Any], duplicate_order_id: bool = False
 ) -> dict[str, Any]:
@@ -548,6 +602,8 @@ def classify_record(
         "payment_status",
     ):
         _clean_text(record, field, corrections)
+        
+    _normalize_business_keys(record, corrections)
         
     if not record.get("order_id"):
         errors.append(

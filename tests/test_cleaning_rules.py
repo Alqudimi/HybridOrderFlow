@@ -145,3 +145,31 @@ def test_advanced_cleaning_rules() -> None:
     res_city = classify_record(record_city)
     assert res_city["city"] == "صنعاء"
 
+
+def test_business_key_inferences() -> None:
+    # Case 1: customer_id is missing, infer from order_id
+    record = valid_record()
+    record["customer_id"] = ""
+    record["order_id"] = "طلب-100006"
+    res = classify_record(record)
+    assert res["quality_status"] == "corrected"
+    assert res["customer_id"] == "عميل-6"
+
+    # Case 2: order_id is missing, infer from customer_id
+    record2 = valid_record()
+    record2["order_id"] = ""
+    record2["customer_id"] = "عميل-6"
+    res2 = classify_record(record2)
+    assert res2["quality_status"] == "corrected"
+    assert res2["order_id"] == "طلب-100006"
+
+    # Case 3: Standardization of format (e.g. spaces instead of dashes)
+    record3 = valid_record()
+    record3["order_id"] = "طلب 100021"
+    record3["customer_id"] = "عميل 21"
+    res3 = classify_record(record3)
+    assert res3["quality_status"] == "corrected"
+    assert res3["order_id"] == "طلب-100021"
+    assert res3["customer_id"] == "عميل-21"
+
+
