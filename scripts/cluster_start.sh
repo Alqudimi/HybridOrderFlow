@@ -90,7 +90,7 @@ for NODE in spark-master spark-worker-1 spark-worker-2; do
 
     JAVA_VER=$(docker exec "$NODE" java -version 2>&1 | head -1 || echo "N/A")
     PYTHON_VER=$(docker exec "$NODE" python3 --version 2>&1 || echo "N/A")
-    SPARK_VER=$(docker exec "$NODE" /opt/bitnami/spark/bin/spark-submit --version 2>&1 | grep "version" | head -1 || echo "N/A")
+    SPARK_VER=$(docker exec "$NODE" /opt/spark/bin/spark-submit --version 2>&1 | grep "version" | head -1 || echo "N/A")
 
     echo "   Java:   $JAVA_VER"
     echo "   Python: $PYTHON_VER"
@@ -105,14 +105,14 @@ echo -e "${GREEN}📦 MongoDB: $MONGO_VER${NC}"
 
 # Connector JARs
 echo -e "\n${GREEN}📦 MongoDB Spark Connector JARs (مشتركة عبر جميع العقد):${NC}"
-docker exec spark-master ls /opt/bitnami/spark/pipeline-jars/ 2>/dev/null || echo "  (غير متوفرة)"
+docker exec spark-master ls /opt/spark/pipeline-jars/ 2>/dev/null || echo "  (غير متوفرة)"
 
 # -----------------------------------------------------------------------
 # 6. التحقق من البيانات المشتركة
 # -----------------------------------------------------------------------
 echo -e "\n${YELLOW}[6/6] التحقق من البيانات المشتركة عبر العقد...${NC}"
 for NODE in spark-master spark-worker-1 spark-worker-2; do
-    FILES=$(docker exec "$NODE" ls /opt/bitnami/spark/pipeline-data/ 2>/dev/null | wc -l)
+    FILES=$(docker exec "$NODE" ls /opt/spark/pipeline-data/ 2>/dev/null | wc -l)
     echo -e "   $NODE: $FILES ملفات بيانات متاحة"
 done
 

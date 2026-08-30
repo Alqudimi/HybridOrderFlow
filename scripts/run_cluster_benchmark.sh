@@ -109,17 +109,17 @@ if [ "$CLUSTER_AVAILABLE" = true ]; then
     CLUSTER_START=$(date +%s%N)
 
     # تشغيل spark-submit داخل الكلاستر
-    docker exec spark-master /opt/bitnami/spark/bin/spark-submit \
+    docker exec spark-master /opt/spark/bin/spark-submit \
         --master spark://spark-master:7077 \
         --deploy-mode client \
-        --jars /opt/bitnami/spark/pipeline-jars/mongo-spark-connector_2.13-10.4.0.jar,/opt/bitnami/spark/pipeline-jars/bson-4.8.2.jar,/opt/bitnami/spark/pipeline-jars/bson-record-codec-4.8.2.jar,/opt/bitnami/spark/pipeline-jars/mongodb-driver-core-4.8.2.jar,/opt/bitnami/spark/pipeline-jars/mongodb-driver-sync-4.8.2.jar \
+        --jars /opt/spark/pipeline-jars/mongo-spark-connector_2.13-10.4.0.jar,/opt/spark/pipeline-jars/bson-4.8.2.jar,/opt/spark/pipeline-jars/bson-record-codec-4.8.2.jar,/opt/spark/pipeline-jars/mongodb-driver-core-4.8.2.jar,/opt/spark/pipeline-jars/mongodb-driver-sync-4.8.2.jar \
         --conf "spark.mongodb.read.connection.uri=mongodb://spark-cluster-mongodb:27017/orders_pipeline.orders_raw" \
         --conf "spark.mongodb.write.connection.uri=mongodb://spark-cluster-mongodb:27017/orders_pipeline" \
         --conf "spark.executor.memory=2g" \
         --conf "spark.driver.memory=2g" \
-        --py-files /opt/bitnami/spark/pipeline-src/*.py \
-        /opt/bitnami/spark/pipeline-src/main.py \
-        --input /opt/bitnami/spark/pipeline-data/orders_1m.csv \
+        --py-files /opt/spark/pipeline-src/*.py \
+        /opt/spark/pipeline-src/main.py \
+        --input /opt/spark/pipeline-data/orders_1m.csv \
         --force-engine pyspark 2>&1 | tee /tmp/benchmark_cluster.log
 
     CLUSTER_END=$(date +%s%N)
