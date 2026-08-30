@@ -65,6 +65,7 @@ def load_raw_streaming(
     engine_used: str = "python_batch",
 ) -> RawLoadResult:
     """Stage 1: stream CSV rows into Raw before any quality function runs."""
+    resolved_path = str(Path(path).resolve())
     result = RawLoadResult()
     batch: list[dict[str, Any]] = []
     for source_row_number, raw_record in stream_csv_rows(path):
@@ -73,7 +74,7 @@ def load_raw_streaming(
             build_raw_document(
                 raw_record,
                 run_id,
-                str(path),
+                resolved_path,
                 source_row_number,
                 engine_used,
             )

@@ -1,4 +1,0 @@
-modules = ["python-3.11"]
-[nix]
-packages = ["freetype", "gumbo", "harfbuzz", "jbig2dec", "libjpeg_turbo", "mupdf", "openjpeg", "p7zip", "swig", "xcbuild"]
-channel = "stable-25_05"

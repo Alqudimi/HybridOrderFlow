@@ -1,195 +1,153 @@
-# Hybrid Orders Data Pipeline
+# خط البيانات الهجين لمعالجة الطلبات الضخمة (Hybrid Orders Data Pipeline)
 
-خط بيانات هجين لمعالجة ملف طلبات تجارة إلكترونية غير نظيف وفق نمط ELT:
-يصل كل سجل أولًا إلى `orders_raw`، ثم يصنف إلى `orders_validated` أو
-`orders_quarantine` مع أثر التصحيح وسبب العزل.
+مشروع متكامل ومتقدم لمعالجة بيانات متجر إلكتروني ضخمة ومختلطة الجودة وفق نمط **ELT** (Extract-Load-Transform)، يجمع بين المعالجة التدفّقية الخفيفة عبر **Python Batch Streaming** والمعالجة المتوازية الضخمة عبر **Apache Spark / PySpark**، مع قاعدة بيانات **MongoDB** وإثبات موثوقية كامل لـ **Idempotency** و**Upsert** وتطبيق **المسار المتقدم B (التحميل التزايدي وإدارة الإصدارات)**.
 
-## ما تم تنفيذه
+---
 
-- Router واحد يقرأ حجم الملف ويختار `python_batch` عندما يكون الحجم
-  `<= SMALL_FILE_THRESHOLD_MB`، و`pyspark` عندما يتجاوزه.
-- Python Batch يستخدم `csv.DictReader` وStreaming و`insert_many` بدفعات قابلة
-  للضبط، ولا يستخدم `list(reader)` أو Pandas.
-- مسار PySpark يستخدم `SparkSession` وDataFrame API وSchema ثابتة من نوع
-  `StringType` للحقول الحساسة، ويكتب عبر MongoDB Spark Connector.
-- ELT واضح: التحميل الكامل إلى Raw يسبق أي تنظيف.
-- أكثر من ثماني قواعد تصحيح حتمية: الأرقام العربية، فواصل الآلاف، العملات،
-  الكلمات الرقمية المعروفة، الهاتف، البريد، التاريخ، Trim والقواميس، وإعادة
-  حساب الإجمالي.
-- Audit Trail في `corrections` يحفظ الحقل والقيمة الأصلية والجديدة و`rule_code`.
-- Quarantine لا يحذف السجلات: يحفظ `error_codes` و`error_details` و`raw_record`.
-- `order_id` هو Stable Business Key، مع Unique Index وAtomic Upsert.
-- لكل دفعة حفظ `Idempotency Key` ثابت مع بصمة Payload؛ إعادة الطلب نفسه لا
-  تضيف Raw/Quarantine ولا تعيد الكتابة التجارية، وإعادة استخدام المفتاح مع
-  Payload مختلف تفشل صراحة.
-- كل دفعة معالجة تحفظ checkpoint ذرياً في حالة التشغيل. عند انقطاع التشغيل
-  يعاد استخدام claim نفسه وتستأنف قواعد الجودة بعد آخر `source_row_number`
-  ناجح بدلاً من إعادة معالجة الملف كاملاً.
-- الكتابة التزايدية تقارن `version` داخل عملية MongoDB الذرية؛ النسخة الأقدم
-  أو المساوية لا تستبدل النسخة الأحدث.
-- مقاييس التشغيل في `reports/results.json`، بما فيها الاتساق:
-  `raw_loaded = valid_count + corrected_count + quarantine_count`.
-- مسار B اختياري للـ Incremental Loading بملفات Delta و`version`.
-- اختبارات أساسية للقواعد والتصنيف والـ Router وإعادة التشغيل.
+## 🌟 أبرز المميزات المعمارية والوظيفية
 
-## التشغيل السريع دون MongoDB
+1. **الموجّه التلقائي للمحرك (File Router)**: نقطة تشغيل موحدة تفحص حجم الملف الفعلي؛ تختار `python_batch` للملفات <= 200MB، و`pyspark` للملفات الضخمة > 200MB.
+2. **التحميل الخام الكامل وفق ELT**: جميع السجلات تصل أولاً إلى `orders_raw` دون أي حذف أو تصفية مسبقة، مع حفظ `run_id` واسم الملف ورقم الصف والوقت والمحرك.
+3. **أكثر من 8 قواعد جودة وتنظيف حتمية**:
+   - تحويل الأرقام العربية والفارسية إلى أرقام لاتينية رقمية.
+   - إزالة رموز العملات وتوحيد العملة إلى `YER`.
+   - إزالة فواصل الآلاف والنقاط وتحويل القيم إلى أرقام عشرية.
+   - تحويل الأسعار المكتوبة بالكلمات المعروفة حصراً.
+   - توحيد صيغة أرقام الهواتف وإزالة المسافات ومفتاح الدولة الدولي.
+   - إصلاح الرموز المكررة في البريد الإلكتروني (`@@` -> `@`, `..` -> `.`) وعزل غير الصالح.
+   - توحيد صيغ التواريخ إلى معيار ISO وعزل التواريخ المستحيلة.
+   - إزالة المسافات الزائدة وتوحيد حالات الطلب والدفع إلى قاموس قياسي.
+   - إعادة حساب إجمالي الطلب ومقارنته بالإجمالي الأصلي وتصحيحه عند ثبوت الفرق.
+4. **أثر التدقيق الكامل (Audit Trail)**: كل سجل مصحح يحتفظ بقائمة `corrections` توضح الحقل المعدل، القيمة الأصلية، القيمة المصححة، ورمز القاعدة `rule_code`.
+5. **طبقة العزل الآمنة (Quarantine)**: نقل السجلات غير القابلة للإصلاح بأمان إلى `orders_quarantine` مع أسباب ورموز الأخطاء (`error_codes`) والسجل الخام الأصلي دون حذف.
+6. **مفتاح الأعمال الثابت وموثوقية إعادة التشغيل (Stable Business Key & Idempotency)**:
+   - اعتماد `order_id` كمفتاح فريد في `orders_validated` عبر Unique Index.
+   - تنفيذ الكتابة باستخدام `Atomic Replace/Upsert`، مما يضمن أن إعادة تشغيل نفس المدخل لا تنشئ سجلات مكررة مطلقاً (`inserted_count = 0` و `unchanged_count > 0`).
+7. **المسار المتقدم B (التحميل التزايدي وإدارة الإصدارات Delta & Versioning)**:
+   - دعم ملفات Delta التي تحتوي على الإضافات والتعديلات فقط.
+   - تطبيق `Version Handling` عبر تحديثات مشروطة على مستوى MongoDB لمنع استبدال نسخة أحدث بنسخة أقدم أو غير مرقمة.
+8. **المقاييس الشاملة والاتساق الرياضي**:
+   - تسجيل الأزمنة ومعدل المعالجة (Throughput) والعدادات في `reports/results.json` و`reports/results.md`.
+   - إثبات معادلة الاتساق الرياضية لكل تشغيل:
+     $$\text{run\_raw\_count} = \text{run\_valid\_count} + \text{run\_corrected\_count} + \text{run\_quarantine\_count}$$
 
-تم توفير `--dry-run` كـ Adapter اختباري في الذاكرة. هذا لا يستبدل MongoDB في
-العرض النهائي، لكنه يثبت قواعد الجودة وIdempotency محليًا:
+---
 
+## 🛠️ المتطلبات والبيئة البرمجية
+
+- **Python**: 3.10+ (تم التحقق على Python 3.12)
+- **MongoDB**: 6.0+ / 7.0+ / 8.0+ (تم التحقق على MongoDB v8.3.7 محليًا على المنفذ `27017`)
+- **Java**: OpenJDK 11 أو 17
+- **Apache Spark**: PySpark 3.5+ أو 4.2+
+- **MongoDB Spark Connector**: `org.mongodb.spark:mongo-spark-connector_2.13:10.4.0` (متوفر محليًا في مجلد `jars/`)
+
+لتثبيت الاعتماديات:
 ```bash
-python src/main.py \
-  --input data/orders_sample.csv \
-  --dry-run \
-  --log-level INFO
+pip install -r requirements.txt
 ```
 
-تظهر في الناتج: حجم الملف، سبب اختيار المحرك، رقم الدفعة، الزمن، معدل
-الإدخال، العدادات، ونجاح معادلة الاتساق.
+---
 
-### الاستطلاع الذكي والاستئناف
+## 🚀 دليل التشغيل والأوامر العملية
 
-للتشغيل الحقيقي استخدم `--smart-poll`. يحفظ النظام بصمة المصدر وwatermark
-والـclaim في MongoDB. إذا توقف التشغيل بعد حفظ دفعات، يعاد تشغيل نفس الأمر؛
-بعد انتهاء lease سيستعيد checkpoint ويبدأ من آخر صف ناجح:
-
+### 1. استخراج عينة صغيرة قابلة لإعادة الإنتاج (Streaming Sample Extraction)
 ```bash
-export SMART_POLL_LEASE_SECONDS=60
-python src/main.py --input data/orders_sample.csv --smart-poll
+python3 src/create_small_sample.py --input data/orders_sample.csv --output data/orders_sample.csv --rows 1000
 ```
 
-لا يعلن الـpoller نجاح المصدر إلا بعد اكتمال ELT. لذلك لا يتم إسقاط claim
-المتوقف ولا اعتبار المصدر معالجاً قبل الأوان. التشغيل `--dry-run` يستخدم حالة
-داخل الذاكرة للعرض والاختبار فقط؛ التشغيل القابل للاستعادة بين العمليات يحتاج
-MongoDB.
-
-## تشغيل MongoDB
-
-يتطلب MongoDB يعملًا محليًا أو URI صالحًا في البيئة. لا تضع الأسرار في
-الكود أو Git:
-
+### 2. التشغيل التلقائي عبر File Router (Python Batch للعينات)
 ```bash
-export MONGO_URI='mongodb://localhost:27017'
-export MONGO_DATABASE='orders_pipeline'
-export BATCH_SIZE=1000
-export SMALL_FILE_THRESHOLD_MB=200
-
-python src/main.py --input data/orders_sample.csv
+python3 src/main.py --input data/orders_sample.csv
 ```
 
-يقوم البرنامج بإنشاء:
-
-- `orders_raw`: تاريخ التحميل الخام، دون Validator أو Unique Business Index.
-- `orders_validated`: الحالة التجارية النهائية، Schema Validation وUnique
-  Index على `order_id` وUpsert.
-- `orders_quarantine`: السجلات غير القابلة للتصحيح مع أسبابها والسجل الخام.
-- `pipeline_idempotency_keys`: سجل مفاتيح طلبات الحفظ وبصمات Payload.
-- `pipeline_source_state` و`pipeline_processing_claims`: watermark وclaims
-  وcheckpoints الخاصة بالـsmart polling.
-
-## إثبات مسار PySpark
-
-لملف أكبر من الحد:
-
+### 3. تشغيل مسار البيانات الكبيرة المتوازي عبر Apache Spark (PySpark)
 ```bash
-export SPARK_MASTER='local[*]'
-python src/main.py --input data/orders_huge_mixed_quality.csv
+python3 src/main.py --input data/orders_sample.csv --force-engine pyspark
 ```
 
-ولأغراض العرض يمكن إجبار الاختيار دون خداع Router الحجم:
-
+### 4. تشغيل المسار المتقدم B (التحميل التزايدي Delta Loader)
 ```bash
-python src/main.py \
-  --input data/orders_sample.csv \
-  --force-engine pyspark
+python3 src/main.py --input data/orders_sample.csv --incremental --version-field version
 ```
 
-مسار Spark يحتاج Java 11+، PySpark، وMongoDB Spark Connector متوافقًا مع
-نسخة Spark. الكود يستخدم Schema ثابتة ولا يضيف `repartition` عشوائيًا؛ يسجل
-عدد Input Partitions. في عنقود مستقل استخدم مثلًا:
-
+### 5. تشغيل الاستطلاع الذكي (Smart Polling & Checkpoint Resume)
 ```bash
-export SPARK_MASTER='spark://MASTER_IP:7077'
-python src/main.py --input data/orders_huge_mixed_quality.csv
+python3 src/main.py --input data/orders_sample.csv --smart-poll
 ```
 
-يجب توثيق نسخة Java/Python/Spark/Connector ومشاركة الملف بين العقد عند اختيار
-مسار Cluster A، وإرفاق Spark UI أثناء العرض.
+---
 
-## الاختبارات
+## 🧪 حزمة الاختبارات والتحقق الشامل
 
+### تشغيل الاختبارات الوظيفية (Unit Tests):
 ```bash
-pytest -q
+pytest -v
 ```
 
-الاختبارات لا تحتاج MongoDB وتغطي:
-
-1. القواعد التصحيحية وأثرها.
-2. أخطاء التاريخ وJSON والعناصر والقيم السالبة.
-3. مفاتيح الأعمال المفقودة والتكرار.
-4. الاتساق بين Raw والنتائج.
-5. إعادة تشغيل نفس المصدر دون زيادة Business Records.
-6. إنشاء العينة والـ Router والـ threshold.
-7. Idempotency Key للدفعات، حماية النسخ الأقدم، والاستئناف من checkpoint.
-
-## المسار التزايدي B
-
-يمكن تطبيق ملف Delta دون تحميله كاملاً إلى الذاكرة:
-
-```python
-from src.incremental_loader import load_delta
-from src.mongo_setup import create_repository
-from config.settings import Settings
-
-settings = Settings.from_env()
-repository = create_repository(settings)
-try:
-    stats = load_delta(
-        "data/orders_delta.csv",
-        run_id="delta-run-1",
-        repository=repository,
-        version_field="version",
-        batch_size=settings.batch_size,
-    )
-    print(stats)
-finally:
-    repository.close()
-```
-
-أو من نقطة التشغيل:
-
+### تشغيل حزمة الفحص والتحقق الشامل وتوليد التقارير:
 ```bash
-python src/main.py \
-  --input data/orders_delta.csv \
-  --incremental \
-  --version-field version
+bash scripts/run_verification.sh
 ```
 
-يجب أن يحتوي Delta على `version`. التشغيل الأول يسجل Insert، والنسخة الأحدث
-تسجل Update، وإعادة نفس الملف تسجل Unchanged دون Duplicate أو إعادة تطبيق
-نسخة أقدم. ويمكن تغيير اسم عمود watermark عبر `version_field`.
+---
 
-## هيكل المشروع
+## 📁 هيكل المشروع المنظم
 
 ```text
-config/settings.py             الإعدادات والبيئة
-src/file_router.py             اختيار المحرك
-src/batch_loader.py            Streaming Raw Loader
-src/spark_loader.py            PySpark + Connector path
-src/quality_rules.py           التنظيف والتصنيف
-src/elt_pipeline.py            orchestration وELT
-src/repositories.py            MongoDB وIn-memory adapters
-src/incremental_loader.py      Path B: Delta + version
-src/metrics.py                 المقاييس والتقارير
-src/mongo_setup.py             تهيئة collections/indexes/validator
-tests/                         الاختبارات
-docs/architecture.md           قرارات المعمارية
-reports/results.json           مخرجات التشغيل
+midterm-data-pipeline/
+|-- README.md                      دليل التشغيل والمواصفات الشاملة
+|-- TODO.md                        قائمة المهام وسجل حالة التنفيذ
+|-- requirements.txt               المتطلبات البرمجية
+|-- config/
+|   `-- settings.py                إعدادات المشروع ومتغيرات البيئة
+|-- data/
+|   |-- orders_sample.csv          عينة البيانات غير النظيفة
+|   `-- .gitkeep
+|-- jars/                          حزم موصل MongoDB Spark Connector JARs
+|-- src/
+|   |-- main.py                    نقطة التشغيل الرئيسية
+|   |-- file_router.py             موجّه الملفات واختيار المحرك
+|   |-- create_small_sample.py     استخراج العينات التدفقي
+|   |-- batch_loader.py            محرك التحميل الدفعي التدفقي (Python Batch)
+|   |-- spark_loader.py            محرك التحميل والمعالجة المتوازية (PySpark)
+|   |-- quality_rules.py           قواعد التنظيف والتصنيف وأثر التدقيق
+|   |-- elt_pipeline.py            تنسيق خط ELT وعمليات Upsert
+|   |-- incremental_loader.py      المسار المتقدم B: التحميل التزايدي
+|   |-- mongo_setup.py             تهيئة الاتصال ومستودعات MongoDB
+|   |-- repositories.py            مستودعات MongoDB والتحقق من الفهارس والقواعد
+|   |-- smart_poller.py            الاستطلاع الذكي وإدارة نقاط الاستئناف
+|   |-- mongo_aggregation.py       تجميعات MongoDB على جانب الخادم
+|   `-- metrics.py                 حساب المقاييس والتحقق من الاتساق
+|-- tests/
+|   |-- test_cleaning_rules.py     اختبارات قواعد التنظيف
+|   |-- test_classification.py     اختبارات التصنيف والعزل
+|   |-- test_mongo_features.py     اختبارات MongoDB وIdempotency وPolling
+|   `-- test_router_and_sample.py  اختبارات الموجّه واستخراج العينات
+|-- scripts/
+|   |-- run_full_verification.py   سكربت التحقق الشامل من جميع المراحل
+|   |-- run_verification.sh        أمر التشغيل الموحد
+|   `-- generate_report.py         مولد تقرير النتائج التحليلي
+|-- reports/
+|   |-- results.json               سجل مقاييس التشغيل
+|   `-- results.md                 التقرير التحليلي الشامل المقارن
+`-- docs/
+    |-- architecture.md            التوثيق المعماري ومخططات التدفق
+    `-- verification.md            سجل التحقق التشغيلي والأدلة الفعلية
 ```
 
-## ملاحظات العرض
+---
 
-شغّل العينة مع `--dry-run` لرؤية Python Batch، ثم شغّل MongoDB لعرض Raw
-قبل التنظيف، وسجلًا valid/corrected/quarantined، ثم أعد التشغيل بنفس البيانات.
-في `orders_validated` يجب أن يبقى عدد Business Records ثابتًا؛ الإعادة تظهر
-في المقاييس كـ `unchanged_count` بدل Duplicate.
+## 📊 سيناريو العرض العملي أمام المحاضر (Presentation Walkthrough)
+
+1. **الخطوة 1 - تشغيل العينة الصغيرة**: تشغيل `python3 src/main.py --input data/orders_sample.csv` وإظهار اختيار Router لمحرك `python_batch` وطباعة زمن ومعدل الإدخال.
+2. **الخطوة 2 - إثبات نمط ELT في MongoDB**: فتح MongoDB وإظهار وجود كافة السجلات في `orders_raw` ببياناتها الأصلية قبل التنظيف.
+3. **الخطوة 3 - استعراض تصنيف الجودة وأثر التدقيق**:
+   - عرض مثال لسجل سليم (`valid`).
+   - عرض مثال لسجل مصحح (`corrected`) مع حقل `corrections` وقيم ما قبل وبعد التصحيح.
+   - عرض مثال لسجل معزول في `orders_quarantine` مع رمز الخطأ `error_codes` وتفاصيل السبب.
+4. **الخطوة 4 - تشغيل مسار Apache Spark**: تشغيل `python3 src/main.py --input data/orders_sample.csv --force-engine pyspark` وإظهار معالجة Spark المتوازية والكتابة عبر `MongoDB Spark Connector`.
+5. **الخطوة 5 - إثبات Idempotency وUpsert**:
+   - إعادة تشغيل نفس الأمر وملاحظة ثبات عدد السجلات في `orders_validated` دون أي تكرار (`unchanged_count`).
+   - تعديل سجل واحد وإظهار تحديثه في مكانه (`updated_count = 1`) دون إنشاء سجل ثانٍ.
+6. **الخطوة 6 - إثبات المسار المتقدم B (التحميل التزايدي)**: تشغيل `scripts/run_full_verification.py` وإظهار معالجة ملفات Delta وتطبيق تحديثات الإصدارات الأحدث فقط.
+7. **الخطوة 7 - استعراض تقرير النتائج**: فتح ملف `reports/results.md` واستعراض المقاييس المقارنة وتحقق معادلة الاتساق الرياضية.

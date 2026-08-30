@@ -185,6 +185,7 @@ def main(argv: list[str] | None = None) -> int:
                 inserted_count=spark_result.inserted_count,
                 updated_count=spark_result.updated_count,
                 unchanged_count=spark_result.unchanged_count,
+                error_case_counts=spark_result.error_case_counts or {},
             )
             metrics.finish(spark_result.elapsed_seconds)
             write_results(settings.results_path, metrics)

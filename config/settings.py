@@ -16,6 +16,7 @@ class Settings:
     spark_master: str = "local[*]"
     spark_app_name: str = "hybrid-orders-pipeline"
     spark_partitions: int | None = None
+    spark_jars: str | None = None
     smart_poll_lease_seconds: int = 300
     results_path: Path = Path("reports/results.json")
 
@@ -32,6 +33,7 @@ class Settings:
             spark_master=os.getenv("SPARK_MASTER", cls.spark_master),
             spark_app_name=os.getenv("SPARK_APP_NAME", cls.spark_app_name),
             spark_partitions=int(partitions) if partitions else None,
+            spark_jars=os.getenv("SPARK_JARS"),
             smart_poll_lease_seconds=int(
                 os.getenv("SMART_POLL_LEASE_SECONDS", "300")
             ),
