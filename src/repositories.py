@@ -6,6 +6,7 @@ import json
 import logging
 from collections.abc import Iterable, Iterator
 from dataclasses import dataclass
+from datetime import UTC
 from typing import Any, Protocol
 
 logger = logging.getLogger(__name__)
@@ -263,9 +264,7 @@ class MongoOrdersRepository:
                 stats.inserted_count += 1
             elif _incoming_version_is_not_newer(
                 previous, document, version_field
-            ):
-                stats.unchanged_count += 1
-            elif _without_mongo_id(previous) == _without_mongo_id(document):
+            ) or _without_mongo_id(previous) == _without_mongo_id(document):
                 stats.unchanged_count += 1
             else:
                 stats.updated_count += 1
@@ -399,23 +398,27 @@ class MongoOrdersRepository:
 
     def _complete_request(self, request_key: str | None) -> None:
         if request_key is not None:
-            from datetime import datetime, timezone
+            from datetime import datetime
 
             self._db.pipeline_idempotency_keys.update_one(
                 {"_id": request_key},
                 {
                     "$set": {
                         "status": "completed",
-                        "completed_at": datetime.now(timezone.utc),
+                        "completed_at": datetime.now(UTC),
                     }
                 },
             )
 
-def _without_mongo_id(document: dict[str, Any]) -> dict[str, Any]:
+def without_mongo_id(document: dict[str, Any]) -> dict[str, Any]:
     return {key: value for key, value in document.items() if key != "_id"}
 
 
-def _payload_hash(documents: Iterable[dict[str, Any]]) -> str:
+# Backward-compatible alias.
+_without_mongo_id = without_mongo_id
+
+
+def payload_hash(documents: Iterable[dict[str, Any]]) -> str:
     canonical_documents = [
         _canonicalize_for_idempotency(document) for document in documents
     ]
@@ -427,6 +430,10 @@ def _payload_hash(documents: Iterable[dict[str, Any]]) -> str:
         separators=(",", ":"),
     ).encode("utf-8")
     return hashlib.sha256(encoded).hexdigest()
+
+
+# Backward-compatible alias.
+_payload_hash = payload_hash
 
 
 def _canonicalize_for_idempotency(value: Any) -> Any:
@@ -451,18 +458,22 @@ def _stable_document_id(
     return hashlib.sha256(identity.encode("utf-8")).hexdigest()
 
 
-def _as_int(value: Any) -> int | None:
+def as_int(value: Any) -> int | None:
     try:
         return int(value) if value is not None and str(value).strip() else None
     except (TypeError, ValueError):
         return None
 
 
-def _incoming_version_is_not_newer(
+# Backward-compatible alias.
+_as_int = as_int
+
+
+def incoming_version_is_not_newer(
     existing: dict[str, Any], incoming: dict[str, Any], version_field: str
 ) -> bool:
-    incoming_version = _as_int(incoming.get(version_field))
-    existing_version = _as_int(existing.get(version_field))
+    incoming_version = as_int(incoming.get(version_field))
+    existing_version = as_int(existing.get(version_field))
     if incoming_version is None and existing_version is not None:
         return True
     return (
@@ -472,9 +483,17 @@ def _incoming_version_is_not_newer(
     )
 
 
-def _only_duplicate_key_errors(error: Exception) -> bool:
+# Backward-compatible alias.
+_incoming_version_is_not_newer = incoming_version_is_not_newer
+
+
+def only_duplicate_key_errors(error: Exception) -> bool:
     details = getattr(error, "details", None)
     write_errors = details.get("writeErrors", []) if isinstance(details, dict) else []
     return bool(write_errors) and all(
         entry.get("code") == 11000 for entry in write_errors
     )
+
+
+# Backward-compatible alias.
+_only_duplicate_key_errors = only_duplicate_key_errors

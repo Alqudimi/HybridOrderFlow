@@ -15,31 +15,23 @@ Executes and verifies:
 from __future__ import annotations
 
 import csv
-import json
 import logging
-import os
 import sys
 import time
 import uuid
 from pathlib import Path
-from typing import Any
 
 # Ensure workspace root is in sys.path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 import pymongo
+
 from config.settings import Settings
-from src.batch_loader import load_raw_streaming
 from src.elt_pipeline import run_python_elt
 from src.file_router import choose_engine, inspect_file
 from src.incremental_loader import load_delta
 from src.metrics import RunMetrics, write_results
-from src.mongo_aggregation import (
-    latest_version_per_order_pipeline,
-    quality_error_counts_pipeline,
-    validated_status_counts_pipeline,
-)
 from src.mongo_setup import create_repository
 from src.spark_loader import run_spark_pipeline
 
@@ -173,33 +165,37 @@ def verify_phase_3_pyspark(settings: Settings, sample_path: Path) -> RunMetrics:
     assert decision.engine == "pyspark"
 
     run_id = f"demo-pyspark-{uuid.uuid4().hex[:8]}"
-    spark_result = run_spark_pipeline(decision, run_id, settings)
+    repository = create_repository(settings)
+    try:
+        spark_result = run_spark_pipeline(decision, run_id, settings, repository=repository)
     
-    metrics = RunMetrics(
-        run_id=run_id,
-        file_name=decision.file.path.name,
-        file_size_mb=decision.file.size_mb,
-        engine_used="pyspark",
-        rows_read=spark_result.raw_result.rows_read,
-        raw_loaded=spark_result.raw_result.raw_loaded,
-        valid_count=spark_result.valid_count,
-        corrected_count=spark_result.corrected_count,
-        quarantine_count=spark_result.quarantine_count,
-        partitions=spark_result.partitions,
-        inserted_count=spark_result.inserted_count,
-        updated_count=spark_result.updated_count,
-        unchanged_count=spark_result.unchanged_count,
-        error_case_counts=spark_result.error_case_counts or {},
-    )
-    metrics.finish(spark_result.elapsed_seconds)
-    write_results(settings.results_path, metrics)
-    assert metrics.consistency_passed, "Consistency equation failed for PySpark"
-    logger.info(
-        "Phase 3 Success: PySpark Read=%d, Valid=%d, Corrected=%d, Quarantined=%d, Partitions=%d, Throughput=%.1f rec/s",
-        metrics.rows_read, metrics.valid_count, metrics.corrected_count,
-        metrics.quarantine_count, metrics.partitions, metrics.throughput
-    )
-    return metrics
+        metrics = RunMetrics(
+            run_id=run_id,
+            file_name=decision.file.path.name,
+            file_size_mb=decision.file.size_mb,
+            engine_used="pyspark",
+            rows_read=spark_result.raw_result.rows_read,
+            raw_loaded=spark_result.raw_result.raw_loaded,
+            valid_count=spark_result.valid_count,
+            corrected_count=spark_result.corrected_count,
+            quarantine_count=spark_result.quarantine_count,
+            partitions=spark_result.partitions,
+            inserted_count=spark_result.inserted_count,
+            updated_count=spark_result.updated_count,
+            unchanged_count=spark_result.unchanged_count,
+            error_case_counts=spark_result.error_case_counts or {},
+        )
+        metrics.finish(spark_result.elapsed_seconds)
+        write_results(settings.results_path, metrics)
+        assert metrics.consistency_passed, "Consistency equation failed for PySpark"
+        logger.info(
+            "Phase 3 Success: PySpark Read=%d, Valid=%d, Corrected=%d, Quarantined=%d, Partitions=%d, Throughput=%.1f rec/s",
+            metrics.rows_read, metrics.valid_count, metrics.corrected_count,
+            metrics.quarantine_count, metrics.partitions, metrics.throughput
+        )
+        return metrics
+    finally:
+        repository.close()
 
 
 def verify_phase_4_incremental_path_b(settings: Settings) -> list[RunMetrics]:

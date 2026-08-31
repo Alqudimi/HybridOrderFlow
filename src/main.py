@@ -17,6 +17,8 @@ from src.file_router import choose_engine, inspect_file
 from src.mongo_setup import create_repository
 from src.repositories import InMemoryOrdersRepository
 
+logger = logging.getLogger(__name__)
+
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
@@ -105,7 +107,7 @@ def main(argv: list[str] | None = None) -> int:
 
     repository = InMemoryOrdersRepository() if args.dry_run else create_repository(settings)
     try:
-        if args.incremental:
+        if args.incremental and decision.engine == "python_batch":
             from src.incremental_loader import load_delta
             from src.metrics import RunMetrics, write_results
 
@@ -161,21 +163,45 @@ def main(argv: list[str] | None = None) -> int:
                 progress_callback=progress_callback,
             )
         else:
-            from src.spark_loader import run_spark_pipeline
+            from src.spark_loader import (
+                run_spark_incremental_pipeline,
+                run_spark_pipeline,
+            )
 
-            if args.dry_run:
-                raise RuntimeError(
-                    "The PySpark route needs MongoDB Connector and a MongoDB "
-                    "repository; --dry-run only supports python_batch."
+            progress_callback = None
+            if poller and poll_decision:
+                progress_callback = (
+                    lambda row, counters: poller.mark_progress(
+                        poll_decision, row, counters
+                    )
                 )
-            spark_result = run_spark_pipeline(decision, run_id, settings)
+
+            if args.incremental:
+                spark_result = run_spark_incremental_pipeline(
+                    decision,
+                    run_id,
+                    settings,
+                    repository=repository,
+                    version_field=args.version_field,
+                    dry_run=args.dry_run,
+                    progress_callback=progress_callback,
+                )
+            else:
+                spark_result = run_spark_pipeline(
+                    decision,
+                    run_id,
+                    settings,
+                    repository=repository,
+                    dry_run=args.dry_run,
+                    progress_callback=progress_callback,
+                )
             from src.metrics import RunMetrics, write_results
 
             metrics = RunMetrics(
                 run_id=run_id,
                 file_name=decision.file.path.name,
                 file_size_mb=decision.file.size_mb,
-                engine_used="pyspark",
+                engine_used="pyspark" if not args.incremental else "pyspark_incremental",
                 rows_read=spark_result.raw_result.rows_read,
                 raw_loaded=spark_result.raw_result.raw_loaded,
                 valid_count=spark_result.valid_count,
@@ -189,6 +215,26 @@ def main(argv: list[str] | None = None) -> int:
             )
             metrics.finish(spark_result.elapsed_seconds)
             write_results(settings.results_path, metrics)
+
+            # Run aggregation pipelines for operational reporting when a
+            # full MongoDB repository is available (not dry-run).
+            if (
+                not args.dry_run
+                and hasattr(repository, "aggregate_quality_errors")
+                and hasattr(repository, "aggregate_validated_statuses")
+            ):
+                try:
+                    errors = repository.aggregate_quality_errors(run_id)
+                    statuses = repository.aggregate_validated_statuses()
+                    logger.info(
+                        "Post-Spark aggregations: quality_errors=%s, statuses=%s",
+                        errors[:3] if errors else [],
+                        statuses,
+                    )
+                except Exception:
+                    logger.warning(
+                        "Post-Spark aggregation pipelines failed", exc_info=True
+                    )
         if poller and poll_decision:
             poller.mark_success(poll_decision)
         print(metrics_summary(metrics))
