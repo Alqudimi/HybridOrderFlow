@@ -1,6 +1,6 @@
 {
   "last_run": {
-    "run_id": "api-98aa4233-9a45-49bb-8f7f-2b6bea720b91",
+    "run_id": "api-92164310-5ca1-426d-b20e-0e0ef2969dcf",
     "file_name": "orders_sample.csv",
     "file_size_mb": 0.412434,
     "engine_used": "python_batch",
@@ -9,15 +9,15 @@
     "valid_count": 0,
     "corrected_count": 936,
     "quarantine_count": 64,
-    "elapsed_seconds": 2.708068,
-    "throughput": 369.267,
+    "elapsed_seconds": 2.319424,
+    "throughput": 431.142,
     "batches": 1,
     "batch_timings": [
       {
         "batch_number": 1,
         "records": 1000,
-        "elapsed_seconds": 0.131835,
-        "records_per_second": 7585.221
+        "elapsed_seconds": 0.071192,
+        "records_per_second": 14046.496
       }
     ],
     "batch_errors": [],
@@ -31,12 +31,12 @@
       "INVALID_IMPOSSIBLE_DATE": 3,
       "UNKNOWN_PRICE": 7
     },
-    "inserted_count": 55,
+    "inserted_count": 0,
     "updated_count": 0,
-    "unchanged_count": 881,
+    "unchanged_count": 936,
     "consistency_passed": true,
     "consistency_equation": "1000 = 0 + 936 + 64",
-    "started_at": "2026-10-04T20:00:02.296389+00:00",
+    "started_at": "2026-10-04T20:20:57.408031+00:00",
     "config": {
       "batch_size": 1000,
       "partitions": null
@@ -1911,6 +1911,135 @@
       "consistency_passed": true,
       "consistency_equation": "1000 = 0 + 936 + 64",
       "started_at": "2026-10-04T20:00:02.296389+00:00",
+      "config": {
+        "batch_size": 1000,
+        "partitions": null
+      }
+    },
+    {
+      "run_id": "api-ef354339-d486-46f7-a9b9-ff0ce342098c",
+      "file_name": "orders_sample.csv",
+      "file_size_mb": 0.412434,
+      "engine_used": "python_batch",
+      "rows_read": 1000,
+      "raw_loaded": 1000,
+      "valid_count": 0,
+      "corrected_count": 936,
+      "quarantine_count": 64,
+      "elapsed_seconds": 2.104273,
+      "throughput": 475.224,
+      "batches": 1,
+      "batch_timings": [
+        {
+          "batch_number": 1,
+          "records": 1000,
+          "elapsed_seconds": 0.058,
+          "records_per_second": 17241.375
+        }
+      ],
+      "batch_errors": [],
+      "error_case_counts": {
+        "AMBIGUOUS_NEGATIVE_VALUE": 15,
+        "INVALID_EMAIL": 14,
+        "CORRUPTED_ITEMS_JSON": 13,
+        "MULTIPLE_CONFLICTING_ERRORS": 5,
+        "DUPLICATE_ORDER_ID": 7,
+        "EMPTY_ITEMS": 10,
+        "INVALID_IMPOSSIBLE_DATE": 3,
+        "UNKNOWN_PRICE": 7
+      },
+      "inserted_count": 0,
+      "updated_count": 21,
+      "unchanged_count": 915,
+      "consistency_passed": true,
+      "consistency_equation": "1000 = 0 + 936 + 64",
+      "started_at": "2026-10-04T20:14:13.079174+00:00",
+      "config": {
+        "batch_size": 1000,
+        "partitions": null
+      }
+    },
+    {
+      "run_id": "api-882c2f50-fca3-4bfa-9457-fcd2b74955c8",
+      "file_name": "orders_sample.csv",
+      "file_size_mb": 0.412434,
+      "engine_used": "python_batch",
+      "rows_read": 1000,
+      "raw_loaded": 1000,
+      "valid_count": 0,
+      "corrected_count": 936,
+      "quarantine_count": 64,
+      "elapsed_seconds": 2.244509,
+      "throughput": 445.532,
+      "batches": 1,
+      "batch_timings": [
+        {
+          "batch_number": 1,
+          "records": 1000,
+          "elapsed_seconds": 0.065908,
+          "records_per_second": 15172.744
+        }
+      ],
+      "batch_errors": [],
+      "error_case_counts": {
+        "AMBIGUOUS_NEGATIVE_VALUE": 15,
+        "INVALID_EMAIL": 14,
+        "CORRUPTED_ITEMS_JSON": 13,
+        "MULTIPLE_CONFLICTING_ERRORS": 5,
+        "DUPLICATE_ORDER_ID": 7,
+        "EMPTY_ITEMS": 10,
+        "INVALID_IMPOSSIBLE_DATE": 3,
+        "UNKNOWN_PRICE": 7
+      },
+      "inserted_count": 0,
+      "updated_count": 0,
+      "unchanged_count": 936,
+      "consistency_passed": true,
+      "consistency_equation": "1000 = 0 + 936 + 64",
+      "started_at": "2026-10-04T20:18:27.837152+00:00",
+      "config": {
+        "batch_size": 1000,
+        "partitions": null
+      }
+    },
+    {
+      "run_id": "api-92164310-5ca1-426d-b20e-0e0ef2969dcf",
+      "file_name": "orders_sample.csv",
+      "file_size_mb": 0.412434,
+      "engine_used": "python_batch",
+      "rows_read": 1000,
+      "raw_loaded": 1000,
+      "valid_count": 0,
+      "corrected_count": 936,
+      "quarantine_count": 64,
+      "elapsed_seconds": 2.319424,
+      "throughput": 431.142,
+      "batches": 1,
+      "batch_timings": [
+        {
+          "batch_number": 1,
+          "records": 1000,
+          "elapsed_seconds": 0.071192,
+          "records_per_second": 14046.496
+        }
+      ],
+      "batch_errors": [],
+      "error_case_counts": {
+        "AMBIGUOUS_NEGATIVE_VALUE": 15,
+        "INVALID_EMAIL": 14,
+        "CORRUPTED_ITEMS_JSON": 13,
+        "MULTIPLE_CONFLICTING_ERRORS": 5,
+        "DUPLICATE_ORDER_ID": 7,
+        "EMPTY_ITEMS": 10,
+        "INVALID_IMPOSSIBLE_DATE": 3,
+        "UNKNOWN_PRICE": 7
+      },
+      "inserted_count": 0,
+      "updated_count": 0,
+      "unchanged_count": 936,
+      "consistency_passed": true,
+      "consistency_equation": "1000 = 0 + 936 + 64",
+      "started_at": "2026-10-04T20:20:57.408031+00:00",
       "config": {
         "batch_size": 1000,
         "partitions": null

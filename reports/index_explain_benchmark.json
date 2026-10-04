@@ -11,7 +11,7 @@
     },
     "before": {
       "execution_time_millis": 0,
-      "total_docs_examined": 886,
+      "total_docs_examined": 941,
       "total_keys_examined": 0,
       "n_returned": 1,
       "winning_plan_stage": "SORT",
@@ -20,7 +20,7 @@
       "has_in_memory_sort": true
     },
     "after": {
-      "execution_time_millis": 3,
+      "execution_time_millis": 0,
       "total_docs_examined": 1,
       "total_keys_examined": 1,
       "n_returned": 1,
@@ -29,7 +29,7 @@
       "has_ixscan": true,
       "has_in_memory_sort": true
     },
-    "docs_examined_ratio": 886.0,
+    "docs_examined_ratio": 941.0,
     "analysis_notes": "Single-field index eliminates COLLSCAN, scanning only matching customer keys."
   },
   {
@@ -45,7 +45,7 @@
     },
     "before": {
       "execution_time_millis": 0,
-      "total_docs_examined": 886,
+      "total_docs_examined": 941,
       "total_keys_examined": 0,
       "n_returned": 12,
       "winning_plan_stage": "SORT",
@@ -54,7 +54,7 @@
       "has_in_memory_sort": true
     },
     "after": {
-      "execution_time_millis": 3,
+      "execution_time_millis": 0,
       "total_docs_examined": 12,
       "total_keys_examined": 12,
       "n_returned": 12,
@@ -63,7 +63,7 @@
       "has_ixscan": true,
       "has_in_memory_sort": false
     },
-    "docs_examined_ratio": 73.83,
+    "docs_examined_ratio": 78.42,
     "analysis_notes": "Compound ESR index eliminates both COLLSCAN and in-memory SORT stage."
   },
   {
@@ -78,25 +78,25 @@
     },
     "before": {
       "execution_time_millis": 1,
-      "total_docs_examined": 886,
+      "total_docs_examined": 941,
       "total_keys_examined": 0,
-      "n_returned": 257,
+      "n_returned": 269,
       "winning_plan_stage": "SORT",
       "has_collscan": true,
       "has_ixscan": false,
       "has_in_memory_sort": true
     },
     "after": {
-      "execution_time_millis": 4,
-      "total_docs_examined": 257,
-      "total_keys_examined": 257,
-      "n_returned": 257,
+      "execution_time_millis": 1,
+      "total_docs_examined": 269,
+      "total_keys_examined": 269,
+      "n_returned": 269,
       "winning_plan_stage": "SORT",
       "has_collscan": false,
       "has_ixscan": true,
       "has_in_memory_sort": true
     },
-    "docs_examined_ratio": 3.45,
+    "docs_examined_ratio": 3.5,
     "analysis_notes": "Multikey B-Tree index indexes nested array elements, avoiding full array traversals."
   }
 ]

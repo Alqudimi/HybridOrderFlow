@@ -8,3 +8,6 @@ TODO.md
 reports/test-results.json
 reports/test-delta.csv
 pymongo_39
+.env
+.venv/
+*.log

@@ -149,3 +149,9 @@ def get_index_strategy_documentation() -> list[dict[str, Any]]:
         }
         for idx in PHASE2_INDEXES
     ]
+
+
+def get_collection_indexes(db: Database, collection_name: str) -> list[dict[str, Any]]:
+    """Returns the list of index specifications on the given collection."""
+    return list(db[collection_name].list_indexes())
+

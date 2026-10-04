@@ -499,6 +499,10 @@ def _normalize_date(
             "%d-%m-%Y",
             "%Y.%m.%d",
             "%d.%m.%Y",
+            "%d %b %Y %H:%M:%S",
+            "%d %B %Y %H:%M:%S",
+            "%d %b %Y",
+            "%d %B %Y",
         ):
             try:
                 parsed = datetime.strptime(text, fmt)

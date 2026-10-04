@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import re
 from datetime import UTC, datetime
 from typing import Any
 from pymongo import ASCENDING, UpdateOne
@@ -219,8 +220,9 @@ def refresh_materialized_views(
     # Incrementally re-aggregate ONLY affected dates
     updated_dates_count = 0
     if affected_dates:
+        date_pattern = "^(" + "|".join(re.escape(d) for d in sorted(affected_dates)) + ")"
         daily_pipeline = [
-            {"$match": {"order_date": {"$regex": f"^({'|'.join(affected_dates)})"}}},
+            {"$match": {"order_date": {"$regex": date_pattern}}},
             {
                 "$project": {
                     "date": {"$substrCP": ["$order_date", 0, 10]},
