@@ -22,6 +22,8 @@ class Settings:
     spark_deploy_mode: str = "client"
     smart_poll_lease_seconds: int = 300
     results_path: Path = Path("reports/results.json")
+    api_host: str = "0.0.0.0"
+    api_port: int = 8000
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -52,6 +54,8 @@ class Settings:
             results_path=Path(
                 os.getenv("RESULTS_PATH", "reports/results.json")
             ),
+            api_host=os.getenv("API_HOST", cls.api_host),
+            api_port=int(os.getenv("API_PORT", str(cls.api_port))),
         )
 
     def validate(self) -> None:
@@ -63,3 +67,5 @@ class Settings:
             raise ValueError("SPARK_PARTITIONS must be positive")
         if self.smart_poll_lease_seconds <= 0:
             raise ValueError("SMART_POLL_LEASE_SECONDS must be positive")
+        if not (1 <= self.api_port <= 65535):
+            raise ValueError("API_PORT must be between 1 and 65535")

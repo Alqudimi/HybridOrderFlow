@@ -1,0 +1,102 @@
+[
+  {
+    "query_name": "orders_by_customer",
+    "index_name": "idx_customer_id",
+    "index_type": "single",
+    "filter_spec": {
+      "customer_id": "عميل-1"
+    },
+    "sort_spec": {
+      "order_date": -1
+    },
+    "before": {
+      "execution_time_millis": 0,
+      "total_docs_examined": 886,
+      "total_keys_examined": 0,
+      "n_returned": 1,
+      "winning_plan_stage": "SORT",
+      "has_collscan": true,
+      "has_ixscan": false,
+      "has_in_memory_sort": true
+    },
+    "after": {
+      "execution_time_millis": 3,
+      "total_docs_examined": 1,
+      "total_keys_examined": 1,
+      "n_returned": 1,
+      "winning_plan_stage": "SORT",
+      "has_collscan": false,
+      "has_ixscan": true,
+      "has_in_memory_sort": true
+    },
+    "docs_examined_ratio": 886.0,
+    "analysis_notes": "Single-field index eliminates COLLSCAN, scanning only matching customer keys."
+  },
+  {
+    "query_name": "orders_by_city_and_status",
+    "index_name": "idx_city_status_order_date",
+    "index_type": "compound (ESR pattern)",
+    "filter_spec": {
+      "city": "صنعاء",
+      "status": "قيد الانتظار"
+    },
+    "sort_spec": {
+      "order_date": -1
+    },
+    "before": {
+      "execution_time_millis": 0,
+      "total_docs_examined": 886,
+      "total_keys_examined": 0,
+      "n_returned": 12,
+      "winning_plan_stage": "SORT",
+      "has_collscan": true,
+      "has_ixscan": false,
+      "has_in_memory_sort": true
+    },
+    "after": {
+      "execution_time_millis": 3,
+      "total_docs_examined": 12,
+      "total_keys_examined": 12,
+      "n_returned": 12,
+      "winning_plan_stage": "FETCH",
+      "has_collscan": false,
+      "has_ixscan": true,
+      "has_in_memory_sort": false
+    },
+    "docs_examined_ratio": 73.83,
+    "analysis_notes": "Compound ESR index eliminates both COLLSCAN and in-memory SORT stage."
+  },
+  {
+    "query_name": "orders_containing_item_sku",
+    "index_name": "idx_items_sku",
+    "index_type": "multikey",
+    "filter_spec": {
+      "items_json.sku": "SKU-1010"
+    },
+    "sort_spec": {
+      "order_date": -1
+    },
+    "before": {
+      "execution_time_millis": 1,
+      "total_docs_examined": 886,
+      "total_keys_examined": 0,
+      "n_returned": 257,
+      "winning_plan_stage": "SORT",
+      "has_collscan": true,
+      "has_ixscan": false,
+      "has_in_memory_sort": true
+    },
+    "after": {
+      "execution_time_millis": 4,
+      "total_docs_examined": 257,
+      "total_keys_examined": 257,
+      "n_returned": 257,
+      "winning_plan_stage": "SORT",
+      "has_collscan": false,
+      "has_ixscan": true,
+      "has_in_memory_sort": true
+    },
+    "docs_examined_ratio": 3.45,
+    "analysis_notes": "Multikey B-Tree index indexes nested array elements, avoiding full array traversals."
+  }
+]
